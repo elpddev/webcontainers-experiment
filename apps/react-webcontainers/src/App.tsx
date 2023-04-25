@@ -28,7 +28,12 @@ function App() {
   return (
     <div className="container">
       <div className="editor">
-        <textarea value="I am a textarea" onChange={() => {}}></textarea>
+        <textarea
+          value="I am a textarea"
+          onChange={() => {
+            /**  */
+          }}
+        ></textarea>
       </div>
       <div className="preview">
         <iframe src="loading.html"></iframe>
