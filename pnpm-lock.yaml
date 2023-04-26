@@ -72,6 +72,9 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.2.0(react@18.2.0)
+      xterm:
+        specifier: ^5.1.0
+        version: 5.1.0
     devDependencies:
       '@types/react':
         specifier: ^18.0.28
@@ -4034,6 +4037,10 @@ packages:
 
   /wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
+
+  /xterm@5.1.0:
+    resolution: {integrity: sha512-LovENH4WDzpwynj+OTkLyZgJPeDom9Gra4DMlGAgz6pZhIDCQ+YuO7yfwanY+gVbn/mmZIStNOnVRU/ikQuAEQ==}
+    dev: false
 
   /y18n@4.0.3:
     resolution: {integrity: sha512-JKhqTOwSrqNA1NY5lSztJ1GrBiUodLMmIZuLiDaMRJ+itFd+ABVE8XBjOvIWL+rSqNDC74LCSFmlb/U4UZ4hJQ==}

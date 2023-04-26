@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WebContainer } from "@webcontainer/api";
+import { Terminal } from "xterm";
 import { files } from "./tutorial-1/files";
+import "xterm/css/xterm.css";
 import "./App.css";
 
 function App() {
@@ -60,12 +62,12 @@ function App() {
           }}
         ></textarea>
       </div>
+
       <div className="preview">
-        <div>
-          {urlRefresh} - {url}
-        </div>
         <iframe key={urlRefresh} src={url}></iframe>
       </div>
+
+      <MiniTerminal />
     </div>
   );
 }
@@ -131,4 +133,28 @@ async function writeIndexJS(container: WebContainer, content: string) {
 
 enum WebContainerEventCode {
   ServerReady = "server-ready",
+}
+
+function MiniTerminal() {
+  const [terminal, setTerminal] = useState<Terminal | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    console.log("*** new terminal ***");
+    if (!ref.current) return;
+
+    const term = new Terminal({
+      convertEol: true,
+    });
+
+    term.open(ref.current);
+    setTerminal(term);
+
+    return () => {
+      console.log("*** closing terminal 1 ***");
+      if (term) term.dispose();
+    };
+  }, [ref.current]);
+
+  return <div ref={ref}></div>;
 }
