@@ -6,8 +6,11 @@ import "./App.css";
 function App() {
   const [container, setContainer] = useState<WebContainer | null>(null);
   const [url, setUrl] = useState<string | undefined>(undefined);
+  const [urlRefresh, setUrlRefresh] = useState(0);
+  const [source, setSource] = useState(files["index.js"].file.contents);
 
   const onLoad = useEvent(async () => {
+    if (container) return;
     const containerTemp = await WebContainer.boot();
     setContainer(containerTemp);
   });
@@ -21,30 +24,47 @@ function App() {
 
     (async () => {
       await container.mount(files);
-      const packageJSON = await container.fs.readFile("package.json", "utf-8");
 
-      const exitCode = await installDependencies(container);
-      if (exitCode !== 0) {
-        throw new Error("Installation failed");
-      }
+      await installDependencies(container);
 
       const { url } = await startDevServer(container);
       setUrl(url);
+      setUrlRefresh((prev) => prev + 1);
     })();
+  }, [container]);
+
+  const onSourceChange = useEvent(() => {
+    if (!container) return;
+    writeIndexJS(container, source);
+  });
+
+  useEffect(() => {
+    onSourceChange();
+  }, [source, onSourceChange]);
+
+  useEffect(() => {
+    if (!container) return;
+    container.on(WebContainerEventCode.ServerReady, (port, url) => {
+      setUrl(url);
+      setUrlRefresh((prev) => prev + 1);
+    });
   }, [container]);
 
   return (
     <div className="container">
       <div className="editor">
         <textarea
-          value={files["index.js"].file.contents}
-          onChange={() => {
-            /**  */
+          value={source}
+          onChange={(e) => {
+            setSource(e.target.value);
           }}
         ></textarea>
       </div>
       <div className="preview">
-        <iframe src={url}></iframe>
+        <div>
+          {urlRefresh} - {url}
+        </div>
+        <iframe key={urlRefresh} src={url}></iframe>
       </div>
     </div>
   );
@@ -72,17 +92,26 @@ async function installDependencies(container: WebContainer) {
     })
   );
 
-  // Wait for install command to exit
-  return installProcess.exit;
+  if ((await installProcess.exit) !== 0) {
+    throw new Error("Installation failed");
+  }
 }
 
 async function startDevServer(container: WebContainer) {
   // Run `npm run start` to start the Express app
-  await container.spawn("npm", ["run", "start"]);
+  const startProcess = await container.spawn("npm", ["run", "start"]);
+
+  startProcess.output.pipeTo(
+    new WritableStream({
+      write(data) {
+        console.log(data);
+      },
+    })
+  );
 
   // Wait for `server-ready` event
-  const [port, url] = await promisifyOn<[string, string]>(
-    "server-ready",
+  const [port, url] = await promisifyOn(
+    WebContainerEventCode.ServerReady,
     container
   );
 
@@ -94,3 +123,12 @@ const promisifyOn = (event: string, target: any) => {
     target.on(event, (...args: any[]) => resolve(args));
   });
 };
+
+async function writeIndexJS(container: WebContainer, content: string) {
+  console.log("** source changed **", content);
+  await container.fs.writeFile("/index.js", content);
+}
+
+enum WebContainerEventCode {
+  ServerReady = "server-ready",
+}
