@@ -10,6 +10,7 @@ function App() {
   const [url, setUrl] = useState<string | undefined>(undefined);
   const [urlRefresh, setUrlRefresh] = useState(0);
   const [source, setSource] = useState(files["index.js"].file.contents);
+  const [terminal, setTerminal] = useState<Terminal | null>(null);
 
   const onLoad = useEvent(async () => {
     if (container) return;
@@ -34,6 +35,13 @@ function App() {
       setUrlRefresh((prev) => prev + 1);
     })();
   }, [container]);
+
+  useEffect(() => {
+    if (!terminal) return;
+    if (!container) return;
+
+    startShell(terminal, container);
+  }, [terminal, container]);
 
   const onSourceChange = useEvent(() => {
     if (!container) return;
@@ -67,7 +75,7 @@ function App() {
         <iframe key={urlRefresh} src={url}></iframe>
       </div>
 
-      <MiniTerminal />
+      <MiniTerminal onChangeTerminal={setTerminal} />
     </div>
   );
 }
@@ -131,11 +139,35 @@ async function writeIndexJS(container: WebContainer, content: string) {
   await container.fs.writeFile("/index.js", content);
 }
 
+async function startShell(terminal: Terminal, container: WebContainer) {
+  console.log("*** starting shell ***");
+
+  const shellProcess = await container.spawn("jsh");
+  shellProcess.output.pipeTo(
+    new WritableStream({
+      write(data) {
+        terminal.write(data);
+      },
+    })
+  );
+
+  const input = shellProcess.input.getWriter();
+  terminal.onData((data) => {
+    input.write(data);
+  });
+
+  return shellProcess;
+}
+
 enum WebContainerEventCode {
   ServerReady = "server-ready",
 }
 
-function MiniTerminal() {
+function MiniTerminal({
+  onChangeTerminal,
+}: {
+  onChangeTerminal?: (terminal: Terminal) => void;
+}) {
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -155,6 +187,10 @@ function MiniTerminal() {
       if (term) term.dispose();
     };
   }, [ref.current]);
+
+  useEffect(() => {
+    onChangeTerminal?.(terminal!);
+  }, [terminal]);
 
   return <div ref={ref}></div>;
 }
