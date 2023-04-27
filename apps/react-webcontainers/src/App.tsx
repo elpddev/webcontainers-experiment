@@ -8,8 +8,11 @@ import "./App.css";
 
 function App() {
   const [container, setContainer] = useState<WebContainer | null>(null);
-  const [urlInfo, setUrlInfo] = useState<{ url: string; num: number }>({
-    url: null,
+  const [urlInfo, setUrlInfo] = useState<{
+    url: string | undefined;
+    num: number;
+  }>({
+    url: undefined,
     num: 0,
   });
   console.log("*** urlInfo ***", urlInfo);
@@ -62,8 +65,7 @@ function App() {
 
   useEffect(() => {
     if (!container) return;
-    container.on(WebContainerEventCode.ServerReady, (port, url) => {
-      console.log("*** url 2 ***", url);
+    container.on(WebContainerEventCode.ServerReady, (_port, url) => {
       setUrlInfo(({ num }) => ({ num: num + 1, url }));
     });
   }, [container]);
@@ -128,10 +130,10 @@ async function startDevServer(container: WebContainer) {
   );
 
   // Wait for `server-ready` event
-  const [port, url] = await promisifyOn(
+  const [port, url] = (await promisifyOn(
     WebContainerEventCode.ServerReady,
     container
-  );
+  )) as any;
 
   return { port, url };
 }
@@ -143,13 +145,10 @@ const promisifyOn = (event: string, target: any) => {
 };
 
 async function writeIndexJS(container: WebContainer, content: string) {
-  console.log("** source changed **", content);
   await container.fs.writeFile("/index.js", content);
 }
 
 async function startShell(terminal: Terminal, container: WebContainer) {
-  console.log("*** starting shell ***");
-
   const shellProcess = await container.spawn("jsh", {
     terminal: {
       cols: terminal.cols,
