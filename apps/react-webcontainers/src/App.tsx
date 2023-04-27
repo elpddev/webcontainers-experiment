@@ -1,14 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { Terminal } from "xterm";
+import { FitAddon } from "xterm-addon-fit";
 import { files } from "./tutorial-1/files";
 import "xterm/css/xterm.css";
 import "./App.css";
 
 function App() {
   const [container, setContainer] = useState<WebContainer | null>(null);
-  const [url, setUrl] = useState<string | undefined>(undefined);
-  const [urlRefresh, setUrlRefresh] = useState(0);
+  const [urlInfo, setUrlInfo] = useState<{ url: string; num: number }>({
+    url: null,
+    num: 0,
+  });
+  console.log("*** urlInfo ***", urlInfo);
+  const serverUrl = useMemo(
+    () => urlInfo.url && `${urlInfo.url}?${urlInfo.num}`,
+    [urlInfo]
+  );
   const [source, setSource] = useState(files["index.js"].file.contents);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
 
@@ -31,8 +39,8 @@ function App() {
       await installDependencies(container);
 
       const { url } = await startDevServer(container);
-      setUrl(url);
-      setUrlRefresh((prev) => prev + 1);
+      console.log("*** url ***", url);
+      setUrlInfo(({ num }) => ({ url, num: num + 1 }));
     })();
   }, [container]);
 
@@ -55,8 +63,8 @@ function App() {
   useEffect(() => {
     if (!container) return;
     container.on(WebContainerEventCode.ServerReady, (port, url) => {
-      setUrl(url);
-      setUrlRefresh((prev) => prev + 1);
+      console.log("*** url 2 ***", url);
+      setUrlInfo(({ num }) => ({ num: num + 1, url }));
     });
   }, [container]);
 
@@ -72,7 +80,7 @@ function App() {
       </div>
 
       <div className="preview">
-        <iframe key={urlRefresh} src={url}></iframe>
+        <iframe src={serverUrl}></iframe>
       </div>
 
       <MiniTerminal onChangeTerminal={setTerminal} />
@@ -142,7 +150,12 @@ async function writeIndexJS(container: WebContainer, content: string) {
 async function startShell(terminal: Terminal, container: WebContainer) {
   console.log("*** starting shell ***");
 
-  const shellProcess = await container.spawn("jsh");
+  const shellProcess = await container.spawn("jsh", {
+    terminal: {
+      cols: terminal.cols,
+      rows: terminal.rows,
+    },
+  });
   shellProcess.output.pipeTo(
     new WritableStream({
       write(data) {
@@ -179,7 +192,12 @@ function MiniTerminal({
       convertEol: true,
     });
 
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
     term.open(ref.current);
+
+    fitAddon.fit();
+
     setTerminal(term);
 
     return () => {
