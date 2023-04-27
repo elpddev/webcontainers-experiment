@@ -133,14 +133,15 @@ async function startDevServer(container: WebContainer) {
   const [port, url] = (await promisifyOn(
     WebContainerEventCode.ServerReady,
     container
-  )) as any;
+  )) as [number, string];
 
   return { port, url };
 }
 
-const promisifyOn = (event: string, target: any) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const promisifyOn = (event: string, target: any): Promise<any> => {
   return new Promise((resolve) => {
-    target.on(event, (...args: any[]) => resolve(args));
+    target.on(event, (...args: unknown[]) => resolve(args));
   });
 };
 
@@ -181,11 +182,11 @@ function MiniTerminal({
   onChangeTerminal?: (terminal: Terminal) => void;
 }) {
   const [terminal, setTerminal] = useState<Terminal | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
+  const [ref, setRef] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     console.log("*** new terminal ***");
-    if (!ref.current) return;
+    if (!ref) return;
 
     const term = new Terminal({
       convertEol: true,
@@ -193,7 +194,7 @@ function MiniTerminal({
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
-    term.open(ref.current);
+    term.open(ref);
 
     fitAddon.fit();
 
@@ -203,11 +204,19 @@ function MiniTerminal({
       console.log("*** closing terminal 1 ***");
       if (term) term.dispose();
     };
-  }, [ref.current]);
+  }, [ref]);
 
   useEffect(() => {
-    onChangeTerminal?.(terminal!);
-  }, [terminal]);
+    if (!terminal) return;
+    onChangeTerminal?.(terminal);
+  }, [terminal, onChangeTerminal]);
 
-  return <div ref={ref}></div>;
+  return (
+    <div
+      ref={(ref) => {
+        console.log("*** ref ***", ref);
+        setRef(ref);
+      }}
+    ></div>
+  );
 }
